@@ -18,6 +18,7 @@ class HeadTracker:
             predictor_path = project / PREDICTOR_NAME
             if not predictor_path.is_file():
                 predictor_path = project.parent / PREDICTOR_NAME
+        predictor_path = Path(predictor_path)
         if not predictor_path.is_file():
             raise RuntimeError(f"Missing dlib model: {predictor_path}. See README.md.")
 
@@ -26,6 +27,22 @@ class HeadTracker:
         self.tracker = dlib.correlation_tracker()
         self.tracking = False
         self.frames_until_detection = 0
+
+    def find_faces(self, rgb, nose):
+        if nose is not None:
+            height, width = rgb.shape[:2]
+            x, y = nose
+            radius = max(40, round(min(width, height) * 0.15))
+            left, top = max(0, x - radius), max(0, y - radius)
+            crop = rgb[top:y + radius + 1, left:x + radius + 1].copy()
+            faces = [
+                dlib.rectangle(box.left() + left, box.top() + top,
+                               box.right() + left, box.bottom() + top)
+                for box in self.detect_faces(crop, 1)
+            ]
+            # MediaPipe's nose should lie inside the matching face box.
+            return [face for face in faces if face.contains(dlib.point(x, y))]
+        return self.detect_faces(rgb, 0)
 
     def draw(self, frame, rgb, pose_nose=None):
         """Update the track from an unannotated RGB frame and draw onto frame."""
@@ -37,16 +54,22 @@ class HeadTracker:
                 previous_center = self.tracker.get_position().center()
 
         height, width = frame.shape[:2]
+        nose = None
+        if (
+            pose_nose is not None
+            and pose_nose.visibility is not None
+            and pose_nose.visibility >= 0.5
+            and 0 <= pose_nose.x < 1
+            and 0 <= pose_nose.y < 1
+        ):
+            nose = int(pose_nose.x * width), int(pose_nose.y * height)
+
         if not self.tracking or self.frames_until_detection <= 0:
             self.frames_until_detection = DETECTION_INTERVAL
-            faces = self.detect_faces(rgb, 0)
+            faces = self.find_faces(rgb, nose)
             if faces:
-                if (
-                    pose_nose is not None
-                    and pose_nose.visibility is not None
-                    and pose_nose.visibility >= 0.5
-                ):
-                    x, y = pose_nose.x * width, pose_nose.y * height
+                if nose is not None:
+                    x, y = nose
                 elif previous_center is not None:
                     x, y = previous_center.x, previous_center.y
                 else:
@@ -72,6 +95,9 @@ class HeadTracker:
             min(height - 1, round(position.bottom())),
         )
         if face.is_empty():
+            self.tracking = False
+            return
+        if nose is not None and not face.contains(dlib.point(*nose)):
             self.tracking = False
             return
 

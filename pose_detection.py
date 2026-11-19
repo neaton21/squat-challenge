@@ -34,8 +34,8 @@ def draw_skeleton(frame, landmarks):
         cv2.circle(frame, point, 4, (255, 255, 255), -1, cv2.LINE_AA)
 
 
-def run(camera_index, model):
-    head = HeadTracker()
+def run(camera_index, model, face_model=None):
+    head = HeadTracker(face_model)
     options = mp.tasks.vision.PoseLandmarkerOptions(
         base_options=mp.tasks.BaseOptions(model_asset_path=str(model)),
         running_mode=mp.tasks.vision.RunningMode.VIDEO,
@@ -88,12 +88,14 @@ def main():
     parser.add_argument("--camera", type=int, default=0, help="Webcam index (default: 0)")
     parser.add_argument("--model", type=Path, default=DEFAULT_MODEL,
                         help="Path to the MediaPipe Pose Landmarker model")
+    parser.add_argument("--face-model", type=Path,
+                        help="Path to the dlib 68-point shape predictor")
     args = parser.parse_args()
     if not args.model.is_file():
         parser.error(f"Model file missing: {args.model}. See README.md for download instructions.")
 
     try:
-        run(args.camera, args.model)
+        run(args.camera, args.model, args.face_model)
     except (RuntimeError, ValueError, OSError, cv2.error) as error:
         parser.exit(1, f"{error}\n")
 

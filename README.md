@@ -1,6 +1,6 @@
 # Squat Challenge
 
-The first prototype uses MediaPipe Pose Landmarker to detect one person and draw their skeleton on a mirrored webcam feed. Frame processing happens locally. Squat counting is the next milestone.
+The prototype uses MediaPipe Pose Landmarker to draw one person's skeleton and dlib to track their face and draw 68 facial landmarks on the mirrored webcam feed. Both the desktop window and browser preview process frames locally. Squat counting is the next milestone.
 
 ## Run on Windows
 
@@ -17,7 +17,7 @@ Invoke-WebRequest 'https://storage.googleapis.com/mediapipe-models/pose_landmark
 
 Stand far enough back for the camera to see your whole body. Face the camera to start dlib head tracking. The head box and 68 facial landmarks appear in blue. Press **Q** or **Esc** to exit. If you have multiple webcams, pass `--camera 1` to try the second camera.
 
-The head tracker reads `shape_predictor_68_face_landmarks.dat` from this folder or its parent. For a separate checkout, download and decompress the [dlib shape predictor](https://dlib.net/files/shape_predictor_68_face_landmarks.dat.bz2) into this folder.
+The head tracker reads `shape_predictor_68_face_landmarks.dat` from this folder or its parent. For a separate checkout, download and decompress the [dlib shape predictor](https://dlib.net/files/shape_predictor_68_face_landmarks.dat.bz2) into this folder. To use a model stored elsewhere, pass `--face-model "C:\models\shape_predictor_68_face_landmarks.dat"` to either script.
 
 For the browser preview, run `.\.venv\Scripts\python.exe preview_server.py` and open [localhost:8766](http://127.0.0.1:8766/).
 

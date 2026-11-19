@@ -2,6 +2,7 @@
 
 import argparse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from threading import Lock
 from time import monotonic_ns
 
@@ -21,12 +22,13 @@ img { display:block; width:100%; background:#1a2632; }
 </style>
 <h1>Squat Challenge</h1>
 <p>Keep your full body in frame for the skeleton overlay. Face the camera to start head tracking.</p>
-<img src="/stream" alt="Live camera feed with pose landmarks"
+<img src="/stream" alt="Live camera feed with pose and facial landmarks"
      onerror="this.alt='Camera unavailable. Close other previews or camera apps, then reload.'">
 </html>"""
 
 
 class PreviewHandler(BaseHTTPRequestHandler):
+    face_model = None
     def do_GET(self):
         if self.path == "/":
             self.send_response(200)
@@ -57,7 +59,7 @@ class PreviewHandler(BaseHTTPRequestHandler):
                 self.send_error(503, "Could not open webcam")
                 return
             try:
-                head = HeadTracker()
+                head = HeadTracker(self.face_model)
             except RuntimeError as error:
                 self.log_error("%s", error)
                 self.send_error(503, "Could not load dlib head tracking model")
@@ -97,7 +99,10 @@ class PreviewHandler(BaseHTTPRequestHandler):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--port", type=int, default=8766)
+    parser.add_argument("--face-model", type=Path,
+                        help="Path to the dlib 68-point shape predictor")
     args = parser.parse_args()
+    PreviewHandler.face_model = args.face_model
     with ThreadingHTTPServer(("127.0.0.1", args.port), PreviewHandler) as server:
         print(f"Squat Challenge preview: http://127.0.0.1:{server.server_port}", flush=True)
         server.serve_forever()
